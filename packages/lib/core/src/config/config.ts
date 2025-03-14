@@ -34,6 +34,8 @@ export class DallEConfig {
     DALL_E_IMAGE_QUALITY = 'standard';
     // DALL-E图片风格
     DALL_E_IMAGE_STYLE = 'vivid';
+    // DALL-E Models List
+    DALL_E_MODELS_LIST = '["dall-e-3"]';
 }
 
 // -- AZURE 配置 --
@@ -50,6 +52,8 @@ export class AzureConfig {
     AZURE_API_VERSION = '2024-06-01';
     // Azure Chat Models List
     AZURE_CHAT_MODELS_LIST = '';
+    // AZURE Chat API Extra Params
+    AZURE_CHAT_EXTRA_PARAMS: Record<string, any> = {};
 }
 
 // -- Workers 配置 --
@@ -66,6 +70,8 @@ export class WorkersConfig {
     WORKERS_CHAT_MODELS_LIST = '';
     // Workers Image Models List, When empty, will use the api to get the list
     WORKERS_IMAGE_MODELS_LIST = '';
+    // Workers Chat API Extra Params
+    WORKERS_CHAT_EXTRA_PARAMS: Record<string, any> = {};
 }
 
 // -- Gemini 配置 --
@@ -75,33 +81,39 @@ export class GeminiConfig {
     // Google Gemini API: https://ai.google.dev/gemini-api/docs/openai#rest
     GOOGLE_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
     // Google Gemini Model
-    GOOGLE_COMPLETIONS_MODEL = 'gemini-1.5-flash';
+    GOOGLE_CHAT_MODEL = 'gemini-1.5-flash';
     // Google Chat Models List
     GOOGLE_CHAT_MODELS_LIST = '';
+    // Google Chat API Extra Params
+    GOOGLE_CHAT_EXTRA_PARAMS: Record<string, any> = {};
 }
 
 // -- Mistral 配置 --
 export class MistralConfig {
-    // mistral api key
+    // Mistral api key
     MISTRAL_API_KEY: string | null = null;
-    // mistral api base
+    // Mistral api base
     MISTRAL_API_BASE = 'https://api.mistral.ai/v1';
-    // mistral api model
+    // Mistral api model
     MISTRAL_CHAT_MODEL = 'mistral-tiny';
-    // mistral api chat models list
+    // Mistral api chat models list
     MISTRAL_CHAT_MODELS_LIST = '';
+    // Mistral Chat API Extra Params
+    MISTRAL_CHAT_EXTRA_PARAMS: Record<string, any> = {};
 }
 
 // -- Cohere 配置 --
 export class CohereConfig {
-    // cohere api key
+    // Cohere api key
     COHERE_API_KEY: string | null = null;
-    // cohere api base
+    // Cohere api base
     COHERE_API_BASE = 'https://api.cohere.com/v2';
-    // cohere api model
+    // Cohere api model
     COHERE_CHAT_MODEL = 'command-r-plus';
-    // cohere api chat models list
+    // Cohere api chat models list
     COHERE_CHAT_MODELS_LIST = '';
+    // Cohere Chat API Extra Params
+    COHERE_CHAT_EXTRA_PARAMS: Record<string, any> = {};
 }
 
 // -- Anthropic 配置 --
@@ -114,9 +126,52 @@ export class AnthropicConfig {
     ANTHROPIC_CHAT_MODEL = 'claude-3-5-haiku-latest';
     // Anthropic api chat models list
     ANTHROPIC_CHAT_MODELS_LIST = '';
+    // Anthropic Chat API Extra Params
+    ANTHROPIC_CHAT_EXTRA_PARAMS: Record<string, any> = {};
 }
 
-type UserConfig = AgentShareConfig & OpenAIConfig & DallEConfig & AzureConfig & WorkersConfig & GeminiConfig & MistralConfig & CohereConfig & AnthropicConfig;
+// -- DeepSeek 配置 --
+export class DeepSeekConfig {
+    // DeepSeek api key
+    DEEPSEEK_API_KEY: string | null = null;
+    // DeepSeek api base
+    DEEPSEEK_API_BASE = 'https://api.deepseek.com';
+    // DeepSeek api model
+    DEEPSEEK_CHAT_MODEL = 'deepseek-chat';
+    // DeepSeek api chat models list
+    DEEPSEEK_CHAT_MODELS_LIST = '';
+    // DeepSeek Chat API Extra Params
+    DEEPSEEK_CHAT_EXTRA_PARAMS: Record<string, any> = {};
+}
+
+// -- Groq 配置 --
+export class GroqConfig {
+    // Groq api key
+    GROQ_API_KEY: string | null = null;
+    // Groq api base
+    GROQ_API_BASE = 'https://api.groq.com/openai/v1';
+    // Groq api model
+    GROQ_CHAT_MODEL = 'groq-chat';
+    // Groq api chat models list
+    GROQ_CHAT_MODELS_LIST = '';
+    // Groq Chat API Extra Params
+    GROQ_CHAT_EXTRA_PARAMS: Record<string, any> = {};
+}
+
+export class XAIConfig {
+    // XAI api key
+    XAI_API_KEY: string | null = null;
+    // XAI api base
+    XAI_API_BASE = 'https://api.x.ai/v1';
+    // XAI api model
+    XAI_CHAT_MODEL = 'grok-2-latest';
+    // XAI api chat models list
+    XAI_CHAT_MODELS_LIST = '';
+    // XAI Chat API Extra Params
+    XAI_CHAT_EXTRA_PARAMS: Record<string, any> = {};
+}
+
+type UserConfig = AgentShareConfig & OpenAIConfig & DallEConfig & AzureConfig & WorkersConfig & GeminiConfig & MistralConfig & CohereConfig & AnthropicConfig & DeepSeekConfig & GroqConfig & XAIConfig;
 export type AgentUserConfigKey = keyof UserConfig;
 
 export class DefineKeys {
@@ -166,6 +221,8 @@ export class EnvironmentConfig {
         'MISTRAL_API_BASE',
         'COHERE_API_BASE',
         'ANTHROPIC_API_BASE',
+        'DEEPSEEK_API_BASE',
+        'GROQ_API_BASE',
     ];
 
     // -- 群组相关 --

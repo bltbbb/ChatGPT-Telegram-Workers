@@ -15,6 +15,7 @@ class DallEConfig {
   DALL_E_IMAGE_SIZE = "1024x1024";
   DALL_E_IMAGE_QUALITY = "standard";
   DALL_E_IMAGE_STYLE = "vivid";
+  DALL_E_MODELS_LIST = '["dall-e-3"]';
 }
 class AzureConfig {
   AZURE_API_KEY = null;
@@ -23,6 +24,7 @@ class AzureConfig {
   AZURE_IMAGE_MODEL = "dall-e-3";
   AZURE_API_VERSION = "2024-06-01";
   AZURE_CHAT_MODELS_LIST = "";
+  AZURE_CHAT_EXTRA_PARAMS = {};
 }
 class WorkersConfig {
   CLOUDFLARE_ACCOUNT_ID = null;
@@ -31,30 +33,56 @@ class WorkersConfig {
   WORKERS_IMAGE_MODEL = "@cf/black-forest-labs/flux-1-schnell";
   WORKERS_CHAT_MODELS_LIST = "";
   WORKERS_IMAGE_MODELS_LIST = "";
+  WORKERS_CHAT_EXTRA_PARAMS = {};
 }
 class GeminiConfig {
   GOOGLE_API_KEY = null;
   GOOGLE_API_BASE = "https://generativelanguage.googleapis.com/v1beta";
-  GOOGLE_COMPLETIONS_MODEL = "gemini-1.5-flash";
+  GOOGLE_CHAT_MODEL = "gemini-1.5-flash";
   GOOGLE_CHAT_MODELS_LIST = "";
+  GOOGLE_CHAT_EXTRA_PARAMS = {};
 }
 class MistralConfig {
   MISTRAL_API_KEY = null;
   MISTRAL_API_BASE = "https://api.mistral.ai/v1";
   MISTRAL_CHAT_MODEL = "mistral-tiny";
   MISTRAL_CHAT_MODELS_LIST = "";
+  MISTRAL_CHAT_EXTRA_PARAMS = {};
 }
 class CohereConfig {
   COHERE_API_KEY = null;
   COHERE_API_BASE = "https://api.cohere.com/v2";
   COHERE_CHAT_MODEL = "command-r-plus";
   COHERE_CHAT_MODELS_LIST = "";
+  COHERE_CHAT_EXTRA_PARAMS = {};
 }
 class AnthropicConfig {
   ANTHROPIC_API_KEY = null;
   ANTHROPIC_API_BASE = "https://api.anthropic.com/v1";
   ANTHROPIC_CHAT_MODEL = "claude-3-5-haiku-latest";
   ANTHROPIC_CHAT_MODELS_LIST = "";
+  ANTHROPIC_CHAT_EXTRA_PARAMS = {};
+}
+class DeepSeekConfig {
+  DEEPSEEK_API_KEY = null;
+  DEEPSEEK_API_BASE = "https://api.deepseek.com";
+  DEEPSEEK_CHAT_MODEL = "deepseek-chat";
+  DEEPSEEK_CHAT_MODELS_LIST = "";
+  DEEPSEEK_CHAT_EXTRA_PARAMS = {};
+}
+class GroqConfig {
+  GROQ_API_KEY = null;
+  GROQ_API_BASE = "https://api.groq.com/openai/v1";
+  GROQ_CHAT_MODEL = "groq-chat";
+  GROQ_CHAT_MODELS_LIST = "";
+  GROQ_CHAT_EXTRA_PARAMS = {};
+}
+class XAIConfig {
+  XAI_API_KEY = null;
+  XAI_API_BASE = "https://api.x.ai/v1";
+  XAI_CHAT_MODEL = "grok-2-latest";
+  XAI_CHAT_MODELS_LIST = "";
+  XAI_CHAT_EXTRA_PARAMS = {};
 }
 class DefineKeys {
   DEFINE_KEYS = [];
@@ -77,7 +105,9 @@ class EnvironmentConfig {
     "GOOGLE_API_BASE",
     "MISTRAL_API_BASE",
     "COHERE_API_BASE",
-    "ANTHROPIC_API_BASE"
+    "ANTHROPIC_API_BASE",
+    "DEEPSEEK_API_BASE",
+    "GROQ_API_BASE"
   ];
   TELEGRAM_BOT_NAME = [];
   CHAT_GROUP_WHITE_LIST = [];
@@ -159,7 +189,7 @@ class ConfigMerger {
       if (exclude && exclude.includes(key)) {
         continue;
       }
-      const t = target[key] !== null && target[key] !== void 0 ? typeof target[key] : "string";
+      const t = target[key] !== null && target[key] !== undefined ? typeof target[key] : "string";
       if (typeof source[key] !== "string") {
         target[key] = source[key];
         continue;
@@ -192,8 +222,8 @@ class ConfigMerger {
     }
   }
 }
-const BUILD_TIMESTAMP = 1735091598;
-const BUILD_VERSION = "2b81827";
+const BUILD_TIMESTAMP = 1740647468;
+const BUILD_VERSION = "286cd82";
 function createAgentUserConfig() {
   return Object.assign(
     {},
@@ -206,8 +236,14 @@ function createAgentUserConfig() {
     new GeminiConfig(),
     new MistralConfig(),
     new CohereConfig(),
-    new AnthropicConfig()
+    new AnthropicConfig(),
+    new DeepSeekConfig(),
+    new GroqConfig(),
+    new XAIConfig()
   );
+}
+function fixApiBase(base) {
+  return base.replace(/\/+$/, "");
 }
 const ENV_KEY_MAPPER = {
   CHAT_MODEL: "OPENAI_CHAT_MODEL",
@@ -268,6 +304,7 @@ class Environment extends EnvironmentConfig {
     ]);
     ConfigMerger.merge(this.USER_CONFIG, source);
     this.migrateOldEnv(source);
+    this.fixAgentUserConfigApiBase();
     this.USER_CONFIG.DEFINE_KEYS = [];
     this.I18N = loadI18n(this.LANGUAGE.toLowerCase());
   }
@@ -321,6 +358,25 @@ class Environment extends EnvironmentConfig {
       this.USER_CONFIG.AZURE_API_VERSION = url.searchParams.get("api-version") || "2024-06-01";
     }
   }
+  fixAgentUserConfigApiBase() {
+    const keys = [
+      "OPENAI_API_BASE",
+      "GOOGLE_API_BASE",
+      "MISTRAL_API_BASE",
+      "COHERE_API_BASE",
+      "ANTHROPIC_API_BASE",
+      "DEEPSEEK_API_BASE",
+      "GROQ_API_BASE",
+      "XAI_API_BASE"
+    ];
+    for (const key of keys) {
+      const base = this.USER_CONFIG[key];
+      if (this.USER_CONFIG[key] && typeof base === "string") {
+        this.USER_CONFIG[key] = fixApiBase(base);
+      }
+    }
+    this.TELEGRAM_API_DOMAIN = fixApiBase(this.TELEGRAM_API_DOMAIN);
+  }
 }
 const ENV = new Environment();
 class ShareContext {
@@ -343,7 +399,7 @@ class ShareContext {
     this.botToken = token;
     this.botId = botId;
     const id = update.chatID;
-    if (id === void 0 || id === null) {
+    if (id === undefined || id === null) {
       throw new Error("Chat id not found");
     }
     let historyKey = `history:${id}`;
@@ -448,10 +504,7 @@ class APIClientBase {
   constructor(token, baseURL) {
     this.token = token;
     if (baseURL) {
-      this.baseURL = baseURL;
-    }
-    while (this.baseURL.endsWith("/")) {
-      this.baseURL = this.baseURL.slice(0, -1);
+      this.baseURL = baseURL.replace(/\/+$/, "");
     }
     this.request = this.request.bind(this);
     this.requestJSON = this.requestJSON.bind(this);
@@ -709,7 +762,7 @@ class MessageSender {
       const params = {
         chat_id: context.chat_id,
         message_id: context.message_id,
-        parse_mode: context.parse_mode || void 0,
+        parse_mode: context.parse_mode || undefined,
         text: message
       };
       if (context.disable_web_page_preview) {
@@ -721,14 +774,14 @@ class MessageSender {
     } else {
       const params = {
         chat_id: context.chat_id,
-        parse_mode: context.parse_mode || void 0,
+        parse_mode: context.parse_mode || undefined,
         text: message
       };
       if (context.reply_to_message_id) {
         params.reply_parameters = {
           message_id: context.reply_to_message_id,
           chat_id: context.chat_id,
-          allow_sending_without_reply: context.allow_sending_without_reply || void 0
+          allow_sending_without_reply: context.allow_sending_without_reply || undefined
         };
       }
       if (context.disable_web_page_preview) {
@@ -807,223 +860,11 @@ class MessageSender {
       params.reply_parameters = {
         message_id: this.context.reply_to_message_id,
         chat_id: this.context.chat_id,
-        allow_sending_without_reply: this.context.allow_sending_without_reply || void 0
+        allow_sending_without_reply: this.context.allow_sending_without_reply || undefined
       };
     }
     return this.api.sendPhoto(params);
   }
-}
-function extractTextContent(history) {
-  if (typeof history.content === "string") {
-    return history.content;
-  }
-  if (Array.isArray(history.content)) {
-    return history.content.map((item) => {
-      if (item.type === "text") {
-        return item.text;
-      }
-      return "";
-    }).join("");
-  }
-  return "";
-}
-function extractImageContent(imageData) {
-  if (imageData instanceof URL) {
-    return { url: imageData.href };
-  }
-  if (typeof imageData === "string") {
-    if (imageData.startsWith("http")) {
-      return { url: imageData };
-    } else {
-      return { base64: imageData };
-    }
-  }
-  if (typeof Buffer !== "undefined") {
-    if (imageData instanceof Uint8Array) {
-      return { base64: Buffer.from(imageData).toString("base64") };
-    }
-    if (Buffer.isBuffer(imageData)) {
-      return { base64: Buffer.from(imageData).toString("base64") };
-    }
-  }
-  return {};
-}
-async function convertStringToResponseMessages(input) {
-  const text = await input;
-  return {
-    text,
-    responses: [{ role: "assistant", content: await input }]
-  };
-}
-async function loadModelsList(raw, remoteLoader) {
-  if (!raw) {
-    return [];
-  }
-  if (raw.startsWith("[") && raw.endsWith("]")) {
-    try {
-      return JSON.parse(raw);
-    } catch (e) {
-      console.error(e);
-      return [];
-    }
-  }
-  if (raw.startsWith("http") && remoteLoader) {
-    return await remoteLoader(raw);
-  }
-  return [raw];
-}
-function bearerHeader(token, stream) {
-  const res = {
-    "Authorization": `Bearer ${token}`,
-    "Content-Type": "application/json"
-  };
-  if (stream !== void 0) {
-    res.Accept = stream ? "text/event-stream" : "application/json";
-  }
-  return res;
-}
-function getAgentUserConfigFieldName(fieldName) {
-  return fieldName;
-}
-class Cache {
-  maxItems;
-  maxAge;
-  cache;
-  constructor() {
-    this.maxItems = 10;
-    this.maxAge = 1e3 * 60 * 60;
-    this.cache = {};
-    this.set = this.set.bind(this);
-    this.get = this.get.bind(this);
-  }
-  set(key, value) {
-    this.trim();
-    this.cache[key] = {
-      value,
-      time: Date.now()
-    };
-  }
-  get(key) {
-    this.trim();
-    return this.cache[key]?.value;
-  }
-  trim() {
-    let keys = Object.keys(this.cache);
-    for (const key of keys) {
-      if (Date.now() - this.cache[key].time > this.maxAge) {
-        delete this.cache[key];
-      }
-    }
-    keys = Object.keys(this.cache);
-    if (keys.length > this.maxItems) {
-      keys.sort((a, b) => this.cache[a].time - this.cache[b].time);
-      for (let i = 0; i < keys.length - this.maxItems; i++) {
-        delete this.cache[keys[i]];
-      }
-    }
-  }
-}
-const IMAGE_CACHE = new Cache();
-async function fetchImage(url) {
-  const cache = IMAGE_CACHE.get(url);
-  if (cache) {
-    return cache;
-  }
-  return fetch(url).then((resp) => resp.blob()).then((blob) => {
-    IMAGE_CACHE.set(url, blob);
-    return blob;
-  });
-}
-async function urlToBase64String(url) {
-  if (typeof Buffer !== "undefined") {
-    return fetchImage(url).then((blob) => blob.arrayBuffer()).then((buffer) => Buffer.from(buffer).toString("base64"));
-  } else {
-    return fetchImage(url).then((blob) => blob.arrayBuffer()).then((buffer) => btoa(String.fromCharCode.apply(null, new Uint8Array(buffer))));
-  }
-}
-function getImageFormatFromBase64(base64String) {
-  const firstChar = base64String.charAt(0);
-  switch (firstChar) {
-    case "/":
-      return "jpeg";
-    case "i":
-      return "png";
-    case "U":
-      return "webp";
-    default:
-      throw new Error("Unsupported image format");
-  }
-}
-async function imageToBase64String(url) {
-  const base64String = await urlToBase64String(url);
-  const format = getImageFormatFromBase64(base64String);
-  return {
-    data: base64String,
-    format: `image/${format}`
-  };
-}
-function renderBase64DataURI(params) {
-  return `data:${params.format};base64,${params.data}`;
-}
-var ImageSupportFormat =  ((ImageSupportFormat2) => {
-  ImageSupportFormat2["URL"] = "url";
-  ImageSupportFormat2["BASE64"] = "base64";
-  return ImageSupportFormat2;
-})(ImageSupportFormat || {});
-async function renderOpenAIMessage(item, supportImage) {
-  const res = {
-    role: item.role,
-    content: item.content
-  };
-  if (Array.isArray(item.content)) {
-    const contents = [];
-    for (const content of item.content) {
-      switch (content.type) {
-        case "text":
-          contents.push({ type: "text", text: content.text });
-          break;
-        case "image":
-          if (supportImage) {
-            const isSupportURL = supportImage.includes("url" );
-            const isSupportBase64 = supportImage.includes("base64" );
-            const data = extractImageContent(content.image);
-            if (data.url) {
-              if (ENV.TELEGRAM_IMAGE_TRANSFER_MODE === "base64" && isSupportBase64) {
-                contents.push(await imageToBase64String(data.url).then((data2) => {
-                  return { type: "image_url", image_url: { url: renderBase64DataURI(data2) } };
-                }));
-              } else if (isSupportURL) {
-                contents.push({ type: "image_url", image_url: { url: data.url } });
-              }
-            } else if (data.base64 && isSupportBase64) {
-              contents.push({ type: "image_base64", image_base64: { base64: data.base64 } });
-            }
-          }
-          break;
-      }
-    }
-    res.content = contents;
-  }
-  return res;
-}
-async function renderOpenAIMessages(prompt, items, supportImage) {
-  const messages = await Promise.all(items.map((r) => renderOpenAIMessage(r, supportImage)));
-  if (prompt) {
-    if (messages.length > 0 && messages[0].role === "system") {
-      messages.shift();
-    }
-    messages.unshift({ role: "system", content: prompt });
-  }
-  return messages;
-}
-function loadOpenAIModelList(list, base, headers) {
-  if (list === "") {
-    list = `${base}/models`;
-  }
-  return loadModelsList(list, async (url) => {
-    const data = await fetch(url, { headers }).then((res) => res.json());
-    return data.data?.map((model) => model.id) || [];
-  });
 }
 class Stream {
   response;
@@ -1325,6 +1166,331 @@ async function requestChatCompletions(url, header, body, onStream, options) {
   }
   return await mapResponseToAnswer(resp, controller, options, onStream);
 }
+function extractTextContent(history) {
+  if (typeof history.content === "string") {
+    return history.content;
+  }
+  if (Array.isArray(history.content)) {
+    return history.content.map((item) => {
+      if (item.type === "text") {
+        return item.text;
+      }
+      return "";
+    }).join("");
+  }
+  return "";
+}
+function extractImageContent(imageData) {
+  if (imageData instanceof URL) {
+    return { url: imageData.href };
+  }
+  if (typeof imageData === "string") {
+    if (imageData.startsWith("http")) {
+      return { url: imageData };
+    } else {
+      return { base64: imageData };
+    }
+  }
+  if (typeof Buffer !== "undefined") {
+    if (imageData instanceof Uint8Array) {
+      return { base64: Buffer.from(imageData).toString("base64") };
+    }
+    if (Buffer.isBuffer(imageData)) {
+      return { base64: Buffer.from(imageData).toString("base64") };
+    }
+  }
+  return {};
+}
+async function convertStringToResponseMessages(input) {
+  const text = typeof input === "string" ? input : await input;
+  return {
+    text,
+    responses: [{ role: "assistant", content: text }]
+  };
+}
+async function loadModelsList(raw, remoteLoader) {
+  if (!raw) {
+    return [];
+  }
+  if (raw.startsWith("[") && raw.endsWith("]")) {
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      console.error(e);
+      return [];
+    }
+  }
+  if (raw.startsWith("http") && remoteLoader) {
+    return await remoteLoader(raw);
+  }
+  return [raw];
+}
+function bearerHeader(token, stream) {
+  const res = {
+    "Authorization": `Bearer ${token}`,
+    "Content-Type": "application/json"
+  };
+  if (stream !== undefined) {
+    res.Accept = stream ? "text/event-stream" : "application/json";
+  }
+  return res;
+}
+function getAgentUserConfigFieldName(fieldName) {
+  return fieldName;
+}
+class Cache {
+  maxItems;
+  maxAge;
+  cache;
+  constructor() {
+    this.maxItems = 10;
+    this.maxAge = 1e3 * 60 * 60;
+    this.cache = {};
+    this.set = this.set.bind(this);
+    this.get = this.get.bind(this);
+  }
+  set(key, value) {
+    this.trim();
+    this.cache[key] = {
+      value,
+      time: Date.now()
+    };
+  }
+  get(key) {
+    this.trim();
+    return this.cache[key]?.value;
+  }
+  trim() {
+    let keys = Object.keys(this.cache);
+    for (const key of keys) {
+      if (Date.now() - this.cache[key].time > this.maxAge) {
+        delete this.cache[key];
+      }
+    }
+    keys = Object.keys(this.cache);
+    if (keys.length > this.maxItems) {
+      keys.sort((a, b) => this.cache[a].time - this.cache[b].time);
+      for (let i = 0; i < keys.length - this.maxItems; i++) {
+        delete this.cache[keys[i]];
+      }
+    }
+  }
+}
+const IMAGE_CACHE = new Cache();
+async function fetchImage(url) {
+  const cache = IMAGE_CACHE.get(url);
+  if (cache) {
+    return cache;
+  }
+  return fetch(url).then((resp) => resp.blob()).then((blob) => {
+    IMAGE_CACHE.set(url, blob);
+    return blob;
+  });
+}
+async function urlToBase64String(url) {
+  if (typeof Buffer !== "undefined") {
+    return fetchImage(url).then((blob) => blob.arrayBuffer()).then((buffer) => Buffer.from(buffer).toString("base64"));
+  } else {
+    return fetchImage(url).then((blob) => blob.arrayBuffer()).then((buffer) => btoa(String.fromCharCode.apply(null, new Uint8Array(buffer))));
+  }
+}
+function getImageFormatFromBase64(base64String) {
+  const firstChar = base64String.charAt(0);
+  switch (firstChar) {
+    case "/":
+      return "jpeg";
+    case "i":
+      return "png";
+    case "U":
+      return "webp";
+    default:
+      throw new Error("Unsupported image format");
+  }
+}
+async function imageToBase64String(url) {
+  const base64String = await urlToBase64String(url);
+  const format = getImageFormatFromBase64(base64String);
+  return {
+    data: base64String,
+    format: `image/${format}`
+  };
+}
+function renderBase64DataURI(params) {
+  return `data:${params.format};base64,${params.data}`;
+}
+var ImageSupportFormat =  ((ImageSupportFormat2) => {
+  ImageSupportFormat2["URL"] = "url";
+  ImageSupportFormat2["BASE64"] = "base64";
+  return ImageSupportFormat2;
+})(ImageSupportFormat || {});
+async function renderOpenAIMessage(item, supportImage) {
+  const res = {
+    role: item.role,
+    content: item.content
+  };
+  if (Array.isArray(item.content)) {
+    const contents = [];
+    for (const content of item.content) {
+      switch (content.type) {
+        case "text":
+          contents.push({ type: "text", text: content.text });
+          break;
+        case "image":
+          if (supportImage) {
+            const isSupportURL = supportImage.includes("url" );
+            const isSupportBase64 = supportImage.includes("base64" );
+            const data = extractImageContent(content.image);
+            if (data.url) {
+              if (ENV.TELEGRAM_IMAGE_TRANSFER_MODE === "base64" && isSupportBase64) {
+                contents.push(await imageToBase64String(data.url).then((data2) => {
+                  return { type: "image_url", image_url: { url: renderBase64DataURI(data2) } };
+                }));
+              } else if (isSupportURL) {
+                contents.push({ type: "image_url", image_url: { url: data.url } });
+              }
+            } else if (data.base64 && isSupportBase64) {
+              contents.push({ type: "image_base64", image_base64: { base64: data.base64 } });
+            }
+          }
+          break;
+      }
+    }
+    res.content = contents;
+  }
+  return res;
+}
+async function renderOpenAIMessages(prompt, items, supportImage) {
+  const messages = await Promise.all(items.map((r) => renderOpenAIMessage(r, supportImage)));
+  if (prompt) {
+    if (messages.length > 0 && messages[0].role === "system") {
+      messages.shift();
+    }
+    messages.unshift({ role: "system", content: prompt });
+  }
+  return messages;
+}
+function loadOpenAIModelList(list, base, headers) {
+  if (list === "") {
+    list = `${base}/models`;
+  }
+  return loadModelsList(list, async (url) => {
+    const data = await fetch(url, { headers }).then((res) => res.json());
+    return data.data?.map((model) => model.id) || [];
+  });
+}
+function agentConfigFieldGetter(fields) {
+  return (ctx) => ({
+    base: ctx[fields.base],
+    key: ctx[fields.key] || null,
+    model: ctx[fields.model],
+    modelsList: ctx[fields.modelsList],
+    extraParams: ctx[fields.extraParams] || undefined
+  });
+}
+function createOpenAIRequest(builder, options, hooks) {
+  return async (params, context, onStream) => {
+    const { url, header, body } = await builder(params, context, onStream !== null);
+    if (onStream && hooks?.stream) {
+      const onStreamOriginal = onStream;
+      onStream = (text) => {
+        return onStreamOriginal(hooks.stream(text));
+      };
+    }
+    let output = await requestChatCompletions(url, header, body, onStream, options || null);
+    if (hooks?.finish) {
+      output = hooks.finish(output);
+    }
+    return convertStringToResponseMessages(output);
+  };
+}
+function createAgentEnable(valueGetter) {
+  return (ctx) => !!valueGetter(ctx).key;
+}
+function createAgentModel(valueGetter) {
+  return (ctx) => valueGetter(ctx).model;
+}
+function createAgentModelList(valueGetter) {
+  return (ctx) => {
+    const { base, key, modelsList } = valueGetter(ctx);
+    return loadOpenAIModelList(modelsList, base, bearerHeader(key));
+  };
+}
+function defaultOpenAIRequestBuilder(valueGetter, completionsEndpoint = "/chat/completions", supportImage = ["url" ]) {
+  return async (params, context, stream) => {
+    const { prompt, messages } = params;
+    const { base, key, model, extraParams } = valueGetter(context);
+    const url = `${base}${completionsEndpoint}`;
+    const header = bearerHeader(key, stream);
+    const body = {
+      ...extraParams || {},
+      model,
+      stream,
+      messages: await renderOpenAIMessages(prompt, messages, supportImage)
+    };
+    return { url, header, body };
+  };
+}
+class OpenAICompatibilityAgent {
+  name;
+  modelKey;
+  enable;
+  model;
+  modelList;
+  request;
+  constructor(name, fields, options, hooks) {
+    this.name = name;
+    this.modelKey = getAgentUserConfigFieldName(fields.model);
+    const valueGetter = agentConfigFieldGetter(fields);
+    this.enable = createAgentEnable(valueGetter);
+    this.model = createAgentModel(valueGetter);
+    this.modelList = createAgentModelList(valueGetter);
+    this.request = createOpenAIRequest(defaultOpenAIRequestBuilder(valueGetter), options, hooks);
+  }
+}
+class DeepSeek extends OpenAICompatibilityAgent {
+  constructor() {
+    super("deepseek", {
+      base: "DEEPSEEK_API_BASE",
+      key: "DEEPSEEK_API_KEY",
+      model: "DEEPSEEK_CHAT_MODEL",
+      modelsList: "DEEPSEEK_CHAT_MODELS_LIST",
+      extraParams: "DEEPSEEK_CHAT_EXTRA_PARAMS"
+    });
+  }
+}
+class Groq extends OpenAICompatibilityAgent {
+  constructor() {
+    super("groq", {
+      base: "GROQ_API_BASE",
+      key: "GROQ_API_KEY",
+      model: "GROQ_CHAT_MODEL",
+      modelsList: "GROQ_CHAT_MODELS_LIST",
+      extraParams: "GROQ_CHAT_EXTRA_PARAMS"
+    });
+  }
+}
+class Mistral extends OpenAICompatibilityAgent {
+  constructor() {
+    super("mistral", {
+      base: "MISTRAL_API_BASE",
+      key: "MISTRAL_API_KEY",
+      model: "MISTRAL_CHAT_MODEL",
+      modelsList: "MISTRAL_CHAT_MODELS_LIST",
+      extraParams: "MISTRAL_CHAT_EXTRA_PARAMS"
+    });
+  }
+}
+class XAi extends OpenAICompatibilityAgent {
+  constructor() {
+    super("xai", {
+      base: "XAI_API_BASE",
+      key: "XAI_API_KEY",
+      model: "XAI_CHAT_MODEL",
+      modelsList: "XAI_CHAT_MODELS_LIST",
+      extraParams: "XAI_CHAT_EXTRA_PARAMS"
+    });
+  }
+}
 function anthropicHeader(context) {
   return {
     "x-api-key": context.ANTHROPIC_API_KEY || "",
@@ -1397,6 +1563,7 @@ class Anthropic {
       messages.shift();
     }
     const body = {
+      ...context.ANTHROPIC_CHAT_EXTRA_PARAMS || {},
       system: prompt,
       model: context.ANTHROPIC_CHAT_MODEL,
       messages: (await Promise.all(messages.map((item) => Anthropic.render(item)))).filter((i) => i !== null),
@@ -1438,14 +1605,14 @@ class AzureChatAI {
     const url = `https://${context.AZURE_RESOURCE_NAME}.openai.azure.com/openai/deployments/${context.AZURE_CHAT_MODEL}/chat/completions?api-version=${context.AZURE_API_VERSION}`;
     const header = azureHeader(context);
     const body = {
-      ...context.OPENAI_API_EXTRA_PARAMS,
+      ...context.AZURE_CHAT_EXTRA_PARAMS || {},
       messages: await renderOpenAIMessages(prompt, messages, [ImageSupportFormat.URL, ImageSupportFormat.BASE64]),
       stream: onStream != null
     };
     return convertStringToResponseMessages(requestChatCompletions(url, header, body, onStream, null));
   };
   modelList = async (context) => {
-    if (context.AZURE_CHAT_MODELS_LIST) {
+    if (context.AZURE_CHAT_MODELS_LIST === "") {
       context.AZURE_CHAT_MODELS_LIST = `https://${context.AZURE_RESOURCE_NAME}.openai.azure.com/openai/models?api-version=${context.AZURE_API_VERSION}`;
     }
     return loadModelsList(context.AZURE_CHAT_MODELS_LIST, async (url) => {
@@ -1497,6 +1664,7 @@ class Cohere {
     const url = `${context.COHERE_API_BASE}/chat`;
     const header = bearerHeader(context.COHERE_API_KEY, onStream !== null);
     const body = {
+      ...context.COHERE_CHAT_EXTRA_PARAMS || {},
       messages: await renderOpenAIMessages(prompt, messages, null),
       model: context.COHERE_CHAT_MODEL,
       stream: onStream != null
@@ -1529,19 +1697,16 @@ class Cohere {
 class Gemini {
   name = "gemini";
   modelKey = getAgentUserConfigFieldName("GOOGLE_COMPLETIONS_MODEL");
-  enable = (ctx) => !!ctx.GOOGLE_API_KEY;
-  model = (ctx) => ctx.GOOGLE_COMPLETIONS_MODEL;
-  request = async (params, context, onStream) => {
-    const { prompt, messages } = params;
-    const url = `${context.GOOGLE_API_BASE}/openai/chat/completions`;
-    const header = bearerHeader(context.GOOGLE_API_KEY, onStream !== null);
-    const body = {
-      messages: await renderOpenAIMessages(prompt, messages, [ImageSupportFormat.BASE64]),
-      model: context.GOOGLE_COMPLETIONS_MODEL,
-      stream: onStream != null
-    };
-    return convertStringToResponseMessages(requestChatCompletions(url, header, body, onStream, null));
-  };
+  fieldGetter = agentConfigFieldGetter({
+    base: "GOOGLE_API_BASE",
+    key: "GOOGLE_API_KEY",
+    model: "GOOGLE_CHAT_MODEL",
+    modelsList: "GOOGLE_CHAT_MODELS_LIST",
+    extraParams: "GOOGLE_CHAT_EXTRA_PARAMS"
+  });
+  enable = createAgentEnable(this.fieldGetter);
+  model = createAgentModel(this.fieldGetter);
+  request = createOpenAIRequest(defaultOpenAIRequestBuilder(this.fieldGetter, "/openai/chat/completions", [ImageSupportFormat.BASE64]));
   modelList = async (context) => {
     if (context.GOOGLE_CHAT_MODELS_LIST === "") {
       context.GOOGLE_CHAT_MODELS_LIST = `${context.GOOGLE_API_BASE}/models`;
@@ -1550,24 +1715,6 @@ class Gemini {
       const data = await fetch(`${url}?key=${context.GOOGLE_API_KEY}`).then((r) => r.json());
       return data?.models?.filter((model) => model.supportedGenerationMethods?.includes("generateContent")).map((model) => model.name.split("/").pop()) ?? [];
     });
-  };
-}
-class Mistral {
-  name = "mistral";
-  modelKey = getAgentUserConfigFieldName("MISTRAL_CHAT_MODEL");
-  enable = (ctx) => !!ctx.MISTRAL_API_KEY;
-  model = (ctx) => ctx.MISTRAL_CHAT_MODEL;
-  modelList = (ctx) => loadOpenAIModelList(ctx.MISTRAL_CHAT_MODELS_LIST, ctx.MISTRAL_API_BASE, bearerHeader(ctx.MISTRAL_API_KEY));
-  request = async (params, context, onStream) => {
-    const { prompt, messages } = params;
-    const url = `${context.MISTRAL_API_BASE}/chat/completions`;
-    const header = bearerHeader(context.MISTRAL_API_KEY);
-    const body = {
-      model: context.MISTRAL_CHAT_MODEL,
-      messages: await renderOpenAIMessages(prompt, messages, [ImageSupportFormat.URL]),
-      stream: onStream != null
-    };
-    return convertStringToResponseMessages(requestChatCompletions(url, header, body, onStream, null));
   };
 }
 function openAIApiKey(context) {
@@ -1585,8 +1732,8 @@ class OpenAI {
     const url = `${context.OPENAI_API_BASE}/chat/completions`;
     const header = bearerHeader(openAIApiKey(context));
     const body = {
+      ...context.OPENAI_API_EXTRA_PARAMS || {},
       model: context.OPENAI_CHAT_MODEL,
-      ...context.OPENAI_API_EXTRA_PARAMS,
       messages: await renderOpenAIMessages(prompt, messages, [ImageSupportFormat.URL, ImageSupportFormat.BASE64]),
       stream: onStream != null
     };
@@ -1598,7 +1745,7 @@ class Dalle {
   modelKey = getAgentUserConfigFieldName("DALL_E_MODEL");
   enable = (ctx) => ctx.OPENAI_API_KEY.length > 0;
   model = (ctx) => ctx.DALL_E_MODEL;
-  modelList = (ctx) => Promise.resolve([ctx.DALL_E_MODEL]);
+  modelList = (ctx) => loadModelsList(ctx.DALL_E_MODELS_LIST);
   request = async (prompt, context) => {
     const url = `${context.OPENAI_API_BASE}/images/generations`;
     const header = bearerHeader(openAIApiKey(context));
@@ -1656,6 +1803,7 @@ class WorkersChat {
     const { prompt, messages } = params;
     const model = context.WORKERS_CHAT_MODEL;
     const body = {
+      ...context.WORKERS_CHAT_EXTRA_PARAMS || {},
       messages: await renderOpenAIMessages(prompt, messages, null),
       stream: onStream !== null
     };
@@ -1762,7 +1910,10 @@ const CHAT_AGENTS = [
   new WorkersChat(),
   new Cohere(),
   new Gemini(),
-  new Mistral()
+  new Mistral(),
+  new DeepSeek(),
+  new Groq(),
+  new XAi()
 ];
 function loadChatLLM(context) {
   for (const llm of CHAT_AGENTS) {
@@ -1855,7 +2006,7 @@ async function requestCompletionsFromLLM(params, context, agent, modifier, onStr
     throw new Error("Message is empty");
   }
   const llmParams = {
-    prompt: context.USER_CONFIG.SYSTEM_INIT_MESSAGE || void 0,
+    prompt: context.USER_CONFIG.SYSTEM_INIT_MESSAGE || undefined,
     messages: [...history, params]
   };
   const { text, responses } = await agent.request(llmParams, context.USER_CONFIG, onStream);
@@ -2272,7 +2423,7 @@ function evaluateExpression(expr, localData) {
     }, localData);
   } catch (error) {
     console.error(`Error evaluating expression: ${expr}`, error);
-    return void 0;
+    return undefined;
   }
 }
 function interpolate(template, data, formatter) {
@@ -2296,7 +2447,7 @@ function interpolate(template, data, formatter) {
     tmpl = tmpl.replace(INTERPOLATE_CONDITION_REGEXP, (_, alias, condition, trueBlock, falseBlock) => processConditional(condition, trueBlock, falseBlock, localData));
     return tmpl.replace(INTERPOLATE_VARIABLE_REGEXP, (_, expr) => {
       const value = evaluateExpression(expr, localData);
-      if (value === void 0) {
+      if (value === undefined) {
         return `{{${expr}}}`;
       }
       if (formatter) {
@@ -2308,7 +2459,7 @@ function interpolate(template, data, formatter) {
   return processTemplate(template, data);
 }
 function interpolateObject(obj, data) {
-  if (obj === null || obj === void 0) {
+  if (obj === null || obj === undefined) {
     return null;
   }
   if (typeof obj === "string") {
@@ -2665,7 +2816,7 @@ class RedoCommandHandler {
       const historyCopy = structuredClone(history);
       while (true) {
         const data = historyCopy.pop();
-        if (data === void 0 || data === null) {
+        if (data === undefined || data === null) {
           break;
         } else if (data.role === "user") {
           nextMessage = data;

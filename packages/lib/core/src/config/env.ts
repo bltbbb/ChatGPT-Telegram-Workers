@@ -1,19 +1,7 @@
 import type { APIGuardBinding, KVNamespaceBinding, WorkerAIBinding } from './binding';
 import type { AgentUserConfig, AgentUserConfigKey } from './config';
 import loadI18n from '../i18n';
-import {
-    AgentShareConfig,
-    AnthropicConfig,
-    AzureConfig,
-    CohereConfig,
-    DallEConfig,
-    DefineKeys,
-    EnvironmentConfig,
-    GeminiConfig,
-    MistralConfig,
-    OpenAIConfig,
-    WorkersConfig,
-} from './config';
+import { AgentShareConfig, AnthropicConfig, AzureConfig, CohereConfig, DallEConfig, DeepSeekConfig, DefineKeys, EnvironmentConfig, GeminiConfig, GroqConfig, MistralConfig, OpenAIConfig, WorkersConfig, XAIConfig } from './config';
 import { ConfigMerger } from './merger';
 import { BUILD_TIMESTAMP, BUILD_VERSION } from './version';
 
@@ -36,7 +24,14 @@ function createAgentUserConfig(): AgentUserConfig {
         new MistralConfig(),
         new CohereConfig(),
         new AnthropicConfig(),
+        new DeepSeekConfig(),
+        new GroqConfig(),
+        new XAIConfig(),
     );
+}
+
+function fixApiBase(base: string): string {
+    return base.replace(/\/+$/, '');
 }
 
 export const ENV_KEY_MAPPER: Record<string, AgentUserConfigKey> = {
@@ -121,6 +116,7 @@ class Environment extends EnvironmentConfig {
         ]);
         ConfigMerger.merge(this.USER_CONFIG, source);
         this.migrateOldEnv(source);
+        this.fixAgentUserConfigApiBase();
         this.USER_CONFIG.DEFINE_KEYS = [];
         this.I18N = loadI18n(this.LANGUAGE.toLowerCase());
     }
@@ -194,6 +190,26 @@ class Environment extends EnvironmentConfig {
             this.USER_CONFIG.AZURE_IMAGE_MODEL = url.pathname.split('/').at(3) || 'dall-e-3';
             this.USER_CONFIG.AZURE_API_VERSION = url.searchParams.get('api-version') || '2024-06-01';
         }
+    }
+
+    private fixAgentUserConfigApiBase() {
+        const keys: AgentUserConfigKey[] = [
+            'OPENAI_API_BASE',
+            'GOOGLE_API_BASE',
+            'MISTRAL_API_BASE',
+            'COHERE_API_BASE',
+            'ANTHROPIC_API_BASE',
+            'DEEPSEEK_API_BASE',
+            'GROQ_API_BASE',
+            'XAI_API_BASE',
+        ];
+        for (const key of keys) {
+            const base = this.USER_CONFIG[key];
+            if (this.USER_CONFIG[key] && typeof base === 'string') {
+                this.USER_CONFIG[key] = fixApiBase(base) as any;
+            }
+        }
+        this.TELEGRAM_API_DOMAIN = fixApiBase(this.TELEGRAM_API_DOMAIN);
     }
 }
 
